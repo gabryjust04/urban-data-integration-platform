@@ -1,0 +1,93 @@
+datasets:
+  taxi_trips:
+    format: parquet
+
+    input_path: raw/taxi_trips
+    bronze_path: storage/bronze/taxi_trips
+    silver_path: storage/silver/taxi_trips
+    metadata_path: storage/metadata
+
+    schema_version: 1
+
+    columns:
+      VendorID:
+        target: vendor_id
+        type: int
+
+      tpep_pickup_datetime:
+        type: timestamp
+
+      tpep_dropoff_datetime:
+        type: timestamp
+
+      passenger_count:
+        type: int
+
+      trip_distance:
+        type: double
+
+      RatecodeID:
+        target: ratecode_id
+        type: int
+
+      store_and_fwd_flag:
+        type: string
+
+      PULocationID:
+        target: pu_location_id
+        type: int
+
+      DOLocationID:
+        target: do_location_id
+        type: int
+
+      payment_type:
+        type: int
+
+      fare_amount:
+        type: double
+
+      extra:
+        type: double
+
+      mta_tax:
+        type: double
+
+      tip_amount:
+        type: double
+
+      tolls_amount:
+        type: double
+
+      improvement_surcharge:
+        type: double
+
+      total_amount:
+        type: double
+
+      congestion_surcharge:
+        type: double
+
+
+    # Taxi Trips does not provide a natural primary key.
+    primary_key: []
+
+    quality_rules:
+      required_timestamps:
+        - tpep_pickup_datetime
+        - tpep_dropoff_datetime
+
+      numeric_ranges:
+        passenger_count:
+          min: 0
+
+        trip_distance:
+          min: 0
+
+    timestamp_columns: {}
+
+    partition_source_timestamp: tpep_pickup_datetime
+
+    partition_columns:
+      - year
+      - month

@@ -1,0 +1,137 @@
+datasets:
+  air_quality:
+    format: csv
+
+    input_path: raw/air_quality
+    bronze_path: storage/bronze/air_quality
+    silver_path: storage/silver/air_quality
+    metadata_path: storage/metadata
+
+    header: true
+    delimiter: ","
+
+    schema_version: 1
+
+    columns:
+      "State Code":
+        target: state_code
+        type: string
+
+      "County Code":
+        target: county_code
+        type: string
+
+      "Site Num":
+        target: site_num
+        type: string
+
+      "Parameter Code":
+        target: parameter_code
+        type: string
+
+      "POC":
+        target: poc
+        type: int
+
+      "Latitude":
+        target: latitude
+        type: double
+
+      "Longitude":
+        target: longitude
+        type: double
+
+      "Datum":
+        target: datum
+        type: string
+
+      "Parameter Name":
+        target: parameter_name
+        type: string
+
+      "Date Local":
+        target: date_local
+        type: date
+
+      "Time Local":
+        target: time_local
+        type: string
+
+      "Date GMT":
+        target: date_gmt
+        type: date
+
+      "Time GMT":
+        target: time_gmt
+        type: string
+
+      "Sample Measurement":
+        target: sample_measurement
+        type: double
+
+      "Units of Measure":
+        target: units_of_measure
+        type: string
+
+      "MDL":
+        target: mdl
+        type: double
+
+      "Uncertainty":
+        target: uncertainty
+        type: double
+
+      "Qualifier":
+        target: qualifier
+        type: string
+
+      "Method Type":
+        target: method_type
+        type: string
+
+      "Method Code":
+        target: method_code
+        type: string
+
+      "Method Name":
+        target: method_name
+        type: string
+
+      "State Name":
+        target: state_name
+        type: string
+
+      "County Name":
+        target: county_name
+        type: string
+
+      "Date of Last Change":
+        target: date_of_last_change
+        type: date
+
+    primary_key:
+      - state_code
+      - county_code
+      - site_num
+      - parameter_code
+      - poc
+      - date_local
+      - time_local
+
+    timestamp_columns:
+      observation_timestamp:
+        mode: concat
+        source_columns:
+          - date_local
+          - time_local
+        format: "yyyy-MM-dd HH:mm"
+
+    quality_rules:
+      required_timestamps:
+        - observation_timestamp
+
+    partition_source_timestamp: observation_timestamp
+
+    partition_columns:
+      - year
+      - month

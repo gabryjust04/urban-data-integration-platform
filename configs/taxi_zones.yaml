@@ -1,0 +1,38 @@
+datasets:
+  taxi_zones:
+    format: csv
+
+    input_path: raw/taxi_zones
+    bronze_path: storage/bronze/taxi_zones
+    silver_path: storage/silver/taxi_zones
+    metadata_path: storage/metadata
+
+    header: true
+    delimiter: ","
+
+    schema_version: 1
+
+    columns:
+      LocationID:
+        target: location_id
+        type: int
+
+      Borough:
+        target: borough
+        type: string
+
+      Zone:
+        target: zone
+        type: string
+
+      service_zone:
+        type: string
+
+    primary_key:
+      - location_id
+
+    timestamp_columns: {}
+
+    quality_rules: {}
+
+    partition_columns: []

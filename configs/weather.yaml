@@ -1,0 +1,118 @@
+datasets:
+  weather:
+    format: csv
+
+    input_path: raw/weather
+    bronze_path: storage/bronze/weather
+    silver_path: storage/silver/weather
+    metadata_path: storage/metadata
+
+    header: true
+    delimiter: ","
+
+    schema_version: 1
+
+    columns:
+      year:
+        type: int
+
+      month:
+        type: int
+
+      day:
+        type: int
+
+      hour:
+        type: int
+
+      temp:
+        type: double
+
+      temp_source:
+        type: string
+
+      rhum:
+        type: double
+
+      rhum_source:
+        type: string
+
+      prcp:
+        type: double
+
+      prcp_source:
+        type: string
+
+      snwd:
+        type: double
+
+      snwd_source:
+        type: string
+
+      wdir:
+        type: double
+
+      wdir_source:
+        type: string
+
+      wspd:
+        type: double
+
+      wspd_source:
+        type: string
+
+      wpgt:
+        type: double
+
+      wpgt_source:
+        type: string
+
+      pres:
+        type: double
+
+      pres_source:
+        type: string
+
+      cldc:
+        type: double
+
+      cldc_source:
+        type: string
+
+      coco:
+        type: int
+
+      coco_source:
+        type: string
+
+    primary_key:
+      - year
+      - month
+      - day
+      - hour
+
+    timestamp_columns:
+      observation_timestamp:
+        mode: components
+        source_columns:
+          - year
+          - month
+          - day
+          - hour
+
+    quality_rules:
+      required_timestamps:
+        - observation_timestamp
+
+      numeric_ranges:
+        rhum:
+          min: 0
+          max: 100
+
+        prcp:
+          min: 0
+
+        snwd:
+          min: 0
+
+    partition_columns: []
