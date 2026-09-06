@@ -46,9 +46,7 @@ def validate_and_rename(df: DataFrame, config: dict) -> DataFrame:
         raise ValueError(f"Missing columns: {missing}")
 
     if extra:
-            raise ValueError(f"Extra columns: {missing}")
-
-
+            raise ValueError(f"Extra columns: {extra}")
 
     snake_case_pattern = r"^[a-z][a-z0-9_]*$"
 
@@ -335,163 +333,50 @@ def write_to_silver(
 # INGESTION METADATA
 # ============================================================
 
-def write_metadata(
-    spark: SparkSession,
-    dataset_name: str,
-    config: dict,
-    processed: int,
-    rejected: int,
-    execution_time: float
-):
-
+def write_metadata(spark: SparkSession, dataset_name: str, config: dict, processed: int, rejected: int, execution_time: float):
     metadata = [{
         "dataset_name": dataset_name,
-        "schema_version": config.get(
-            "schema_version", 1
-        ),
+        "schema_version": config.get("schema_version", 1),
         "processed_records": processed,
         "rejected_records": rejected,
         "execution_time_seconds": execution_time
     }]
 
-    metadata_df = (
-        spark.createDataFrame(metadata)
-        .withColumn(
-            "ingestion_timestamp",
-            F.current_timestamp()
-        )
-    )
-
-    (
-        metadata_df.write
-        .format("delta")
-        .mode("append")
-        .save(
-            config.get(
-                "metadata_path",
-                "storage/metadata"
-            )
-        )
-    )
+    metadata_df = spark.createDataFrame(metadata).withColumn("ingestion_timestamp", F.current_timestamp())
+    metadata_path = config.get("metadata_path", "storage/metadata")
+    metadata_df.write.format("delta").mode("append").save(metadata_path)
 
 
 # ============================================================
 # COMPLETE INGESTION
 # ============================================================
 
-def ingest_data(
-    spark: SparkSession,
-    dataset_name: str,
-    config: dict
-):
-
+def ingest_data(spark: SparkSession, dataset_name: str, config: dict):
     print(f"\n--- Ingesting {dataset_name} ---")
-
     start = time.perf_counter()
 
-    # Read source
-    df = read_dataset(
-        spark,
-        config
-    )
-
+    # Read & Bronze
+    df = read_dataset(spark, config)
     processed = df.count()
+    df = validate_and_rename(df, config)
+    write_to_bronze(df, config)
 
-    # Validate schema and rename columns
-    df = validate_and_rename(
-        df,
-        config
-    )
+    # Silver Processing
+    df = clean_strings(df).withColumn("_is_valid", F.lit(True))
+    df = cast_types(df, config)
+    df = build_timestamps(df, config)
+    df = apply_quality_rules(df, config)
 
-    # Save Bronze
-    write_to_bronze(
-        df,
-        config
-    )
+    # Deduplicate & Metrics
+    pk = config.get("primary_key", [])
+    valid_df = deduplicate_records(df.filter(F.col("_is_valid")).drop("_is_valid"), pk)
+    valid = valid_df.count()
+    rejected = processed - valid
 
-    # Start Silver processing
-    df = clean_strings(df)
+    # Write Silver & Metadata
+    write_to_silver(valid_df, config)
+    execution_time = time.perf_counter() - start
+    write_metadata(spark, dataset_name, config, processed, rejected, execution_time)
 
-    # Initially every row is valid
-    df = df.withColumn(
-        "_is_valid",
-        F.lit(True)
-    )
-
-    # Normalize data types
-    df = cast_types(
-        df,
-        config
-    )
-
-    # Create common timestamps
-    df = build_timestamps(
-        df,
-        config
-    )
-
-    # Apply quality rules
-    df = apply_quality_rules(
-        df,
-        config
-    )
-
-    # Count invalid rows
-    invalid_count = (
-        df
-        .filter(~F.col("_is_valid"))
-        .count()
-    )
-
-    # Keep only valid rows
-    valid_df = (
-        df
-        .filter(F.col("_is_valid"))
-        .drop("_is_valid")
-    )
-
-    # Remove duplicates
-    before_duplicates = valid_df.count()
-
-    valid_df = deduplicate_records(
-        valid_df,
-        config.get("primary_key", [])
-    )
-
-    after_duplicates = valid_df.count()
-
-    duplicate_count = (
-        before_duplicates
-        - after_duplicates
-    )
-
-    rejected = (
-        invalid_count
-        + duplicate_count
-    )
-
-    # Save Silver
-    write_to_silver(
-        valid_df,
-        config
-    )
-
-    execution_time = (
-        time.perf_counter()
-        - start
-    )
-
-    # Save ingestion statistics
-    write_metadata(
-        spark,
-        dataset_name,
-        config,
-        processed,
-        rejected,
-        execution_time
-    )
-
-    print(f"Processed: {processed}")
-    print(f"Valid: {after_duplicates}")
-    print(f"Rejected: {rejected}")
-    print(f"Time: {execution_time:.2f}s")
+    # Summary
+    print(f"Processed: {processed}\nValid: {valid}\nRejected: {rejected}\nTime: {execution_time:.2f}s")

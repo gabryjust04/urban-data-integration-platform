@@ -68,6 +68,10 @@ datasets:
       congestion_surcharge:
         type: double
 
+      Airport_fee:
+        target: airport_fee
+        type: double
+
 
     # Taxi Trips does not provide a natural primary key.
     primary_key: []
