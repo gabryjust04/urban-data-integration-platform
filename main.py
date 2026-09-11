@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
-from test import display
+from test import benchmark
 from src.integration import build_integrated_taxi_trips
 from src.ingestion import ingest_data
 

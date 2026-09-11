@@ -44,7 +44,7 @@ def prepare_air_quality(df: DataFrame) -> DataFrame:
 # WRITE
 # ============================================================
 def write_gold(df: DataFrame):
-    df.write.format("delta").mode("overwrite").partitionBy("year", "month").save("storage/gold/integrated_taxi_trips")
+    df.write.format("delta").mode("overwrite").partitionBy("year","month").save("storage/gold/integrated_taxi_trips")
 
 # ============================================================
 # MAIN FUNCTION
