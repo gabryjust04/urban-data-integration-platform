@@ -6,11 +6,13 @@ This project implements a generic Spark-based ingestion and integration framewor
 
 Place the raw datasets inside the `raw/` directory, using one subfolder for each dataset. For example:
 
+```text
 raw/
 ├── taxi_trips/
 ├── weather/
 ├── air_quality/
 └── taxi_zones/
+```
 
 Then create the corresponding YAML configuration files inside the `configs/` directory.
 
