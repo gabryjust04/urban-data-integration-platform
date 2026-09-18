@@ -15,7 +15,7 @@ def prepare_taxi(df: DataFrame) -> DataFrame:
 
 
 def prepare_weather(df: DataFrame) -> DataFrame:
-    return df.withColumn("weather_hour", F.date_trunc("hour", F.col("observation_timestamp"))).select("weather_hour", "temp", "rhum", "prcp")
+    return df.withColumn("weather_hour", F.date_trunc("hour", F.col("observation_timestamp"))).select("weather_hour", "temp", "rhum", "prcp","coco")
 
 
 def prepare_pickup_zones(df: DataFrame) -> DataFrame:

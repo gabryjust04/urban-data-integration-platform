@@ -20,11 +20,11 @@ Each configuration defines the input format, schema, column names, data types, q
 
 Create a Python virtual environment:
 
-python -m venv spark_env
+python3 -m venv .venv
 
 Activate it on Linux/macOS:
 
-source spark_env/bin/activate
+source .venv/bin/activate
 
 On Windows:
 
