@@ -99,6 +99,7 @@ datasets:
           - month
           - day
           - hour
+        timezone: UTC
 
     quality_rules:
       required_timestamps:

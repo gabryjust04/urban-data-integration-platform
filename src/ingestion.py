@@ -109,12 +109,22 @@ def build_timestamps(df: DataFrame, config: dict) -> DataFrame:
         # Weather:
         # year + month + day + hour
         if mode == "components":
-            timestamp = F.make_timestamp(F.col(cols[0]), F.col(cols[1]), F.col(cols[2]), F.col(cols[3]), F.lit(0), F.lit(0))
+            args = [F.col(cols[0]), F.col(cols[1]), F.col(cols[2]), F.col(cols[3]), F.lit(0), F.lit(0)]
+            # Optional source timezone (e.g. weather is recorded in UTC)
+            if "timezone" in meta:
+                args.append(F.lit(meta["timezone"]))
+            timestamp = F.make_timestamp(*args)
         # Air Quality:
-        # date_local + time_local
+        # date_gmt + time_gmt
         elif mode == "concat":
-            value = F.concat_ws(" ", *[F.col(c) for c in cols])
-            timestamp = F.to_timestamp(value, meta["format"])
+            parts = [F.col(c) for c in cols]
+            fmt = meta["format"]
+            # Optional source timezone: append it to the string and parse it with the zone-ID pattern
+            if "timezone" in meta:
+                parts.append(F.lit(meta["timezone"]))
+                fmt = fmt + " VV"
+            value = F.concat_ws(" ", *parts)
+            timestamp = F.to_timestamp(value, fmt)
         else:
             raise ValueError(f"Unknown timestamp mode: {mode}")
 

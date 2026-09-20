@@ -122,9 +122,10 @@ datasets:
       observation_timestamp:
         mode: concat
         source_columns:
-          - date_local
-          - time_local
+          - date_gmt
+          - time_gmt
         format: "yyyy-MM-dd HH:mm"
+        timezone: UTC
 
     quality_rules:
       required_timestamps:
