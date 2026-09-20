@@ -110,7 +110,7 @@ def run_analytics_script(spark, cache=False, aqe=False):
                    COUNT(*) AS hours_observed
             FROM hourly_zone_weather
             GROUP BY pickup_zone, coco
-            HAVING COUNT(*) >= 5
+            HAVING COUNT(*) >= 30
         )
         SELECT pickup_zone, COUNT(DISTINCT coco) AS distinct_weather_types,
                ROUND(AVG(avg_trips_in_weather), 2) AS baseline_avg_trips,
@@ -171,6 +171,7 @@ def run_analytics_script(spark, cache=False, aqe=False):
             SELECT date_trunc('month', tpep_pickup_datetime) AS month,
                    COUNT(*) AS total_trips
             FROM trips
+            WHERE tpep_pickup_datetime >= '2024-01-01' AND tpep_pickup_datetime <  '2024-04-01'
             GROUP BY date_trunc('month', tpep_pickup_datetime)
         )
         SELECT total_trips, month,
