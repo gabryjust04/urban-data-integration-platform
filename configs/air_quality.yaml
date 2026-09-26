@@ -109,6 +109,10 @@ datasets:
         target: date_of_last_change
         type: date
 
+      aqi:
+        type: int
+        optional: true
+
     primary_key:
       - state_code
       - county_code

@@ -74,7 +74,12 @@ datasets:
 
 
     # Taxi Trips does not provide a natural primary key.
-    primary_key: []
+    primary_key:
+      - _record_id
+
+    generate_primary_key: true
+
+    update_existing: false
 
     quality_rules:
       required_timestamps:
@@ -95,3 +100,12 @@ datasets:
     partition_columns:
       - year
       - month
+
+    reference_rules:
+      - column: pu_location_id
+        reference_path: storage/silver/taxi_zones
+        reference_column: location_id
+
+      - column: do_location_id
+        reference_path: storage/silver/taxi_zones
+        reference_column: location_id

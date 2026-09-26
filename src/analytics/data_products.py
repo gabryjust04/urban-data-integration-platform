@@ -1,7 +1,10 @@
 import time
-
+from delta.tables import DeltaTable
+from pyspark.sql import functions as F
 from pyspark.sql.functions import current_timestamp, lit
 
+
+DAILY_PATH = "storage/gold/data_products/daily_mobility_summary"
 
 def add_metadata(df):
     return (
@@ -13,27 +16,39 @@ def add_metadata(df):
     )
 
 
-def build_daily_mobility_summary(spark):
-    df = spark.read.format("delta").load("storage/gold/integrated_taxi_trips")
-    df.printSchema()
-    df.createOrReplaceTempView("trips")
-
+def build_daily_mobility_summary(spark, affected_partitions=None):
     start = time.perf_counter()
 
-    df = spark.sql("""
+    df = spark.read.format("delta").load("storage/gold/integrated_taxi_trips")
+
+    # Read only affected partitions during incremental refresh
+    if affected_partitions:
+        condition = " OR ".join(f"(year = {year} AND month = {month})" for year, month in affected_partitions)
+        df = df.filter(condition)
+
+    df.createOrReplaceTempView("trips")
+
+    result = spark.sql("""
         SELECT COUNT(*) AS total_trips,
-               date_trunc('day', t.tpep_pickup_datetime) AS day,
+               date_trunc('day', tpep_pickup_datetime) AS day,
                ROUND(AVG(trip_distance), 2) AS avg_trip_distance,
                ROUND(AVG(fare_amount), 2) AS avg_fare,
                ROUND(AVG(passenger_count), 2) AS avg_passengers
-        FROM trips t
-        GROUP BY date_trunc('day', t.tpep_pickup_datetime)
+        FROM trips
+        GROUP BY date_trunc('day', tpep_pickup_datetime)
     """)
 
-    df = add_metadata(df)
-    df.write.format("delta").mode("overwrite").save(
-        "storage/gold/data_products/daily_mobility_summary"
-    )
+    result = result.withColumn("year", F.year("day")).withColumn("month", F.month("day"))
+    result = add_metadata(result)
+
+    # First build
+    if not DeltaTable.isDeltaTable(spark, DAILY_PATH):
+        result.write.format("delta").mode("overwrite").partitionBy("year", "month").save(DAILY_PATH)
+
+    # Incremental refresh
+    else:
+        predicate = " OR ".join(f"(year = {year} AND month = {month})" for year, month in affected_partitions)
+        result.write.format("delta").mode("overwrite").option("replaceWhere", predicate).save(DAILY_PATH)
 
     print(f"Daily Mobility Summary completed in {time.perf_counter() - start:.2f}s")
 
@@ -148,8 +163,9 @@ def build_borough_mobility_summary(spark):
     print(f"Borough Mobility Summary completed in {time.perf_counter() - start:.2f}s")
 
 
-def build_data(spark):
-    build_daily_mobility_summary(spark)
+def build_data(spark,affected_partitions,changed_datasets):
+    if "taxi_trips" in changed_datasets:
+        build_daily_mobility_summary(spark,affected_partitions)
     build_taxi_zone_statistics(spark)
     build_weather_impact_summary(spark)
     build_air_quality_impact_summary(spark)
