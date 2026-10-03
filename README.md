@@ -1,7 +1,7 @@
 ```markdown
 # urban-data-integration-platform
 
-This project implements a generic Spark-based ingestion, integration, validation, monitoring, and analytics framework for heterogeneous urban datasets using Delta Lake.
+This project implements a generic Spark-based ingestion, integration, validation, monitoring, analytics, and machine learning framework for heterogeneous urban datasets using Delta Lake.
 
 ## How to Run
 
@@ -15,7 +15,7 @@ raw/
 └── taxi_zones/
 ```
 
-Then create the corresponding YAML configuration files inside the `configs/` directory.
+Create the corresponding YAML configuration files inside the `configs/` directory.
 
 Each configuration can define:
 
@@ -54,7 +54,7 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-Run the complete pipeline with:
+Run the complete data pipeline with:
 
 ```bash
 python main.py
@@ -71,7 +71,7 @@ The framework automatically:
 - incrementally updates Silver Delta tables,
 - handles schema evolution,
 - refreshes the integrated Gold dataset,
-- updates the reusable analytical data products,
+- updates reusable analytical data products,
 - records execution metadata for monitoring.
 
 ## Incremental Processing
@@ -155,7 +155,7 @@ The monitoring module reports:
 
 ## Analytics and Benchmarks
 
-To run the analytical queries and optimization benchmarks:
+Run the analytical queries and optimization benchmarks with:
 
 ```bash
 python3 -m src.analytics.main
@@ -200,6 +200,225 @@ They also contain metadata such as:
 
 Where possible, data products are refreshed only when their source datasets are affected.
 
+## Machine Learning
+
+The platform includes a Spark ML pipeline for predicting hourly taxi demand.
+
+The prediction target is:
+
+```text
+taxi_demand
+```
+
+which represents the number of taxi pickups in a specific pickup zone during a specific hour.
+
+The ML dataset is automatically generated from:
+
+```text
+storage/gold/integrated_taxi_trips/
+```
+
+Each row represents one pickup zone during one hour.
+
+The model uses features including:
+
+- hour of day,
+- day of week,
+- month,
+- pickup zone,
+- pickup borough,
+- temperature,
+- relative humidity,
+- precipitation,
+- air-quality measurements.
+
+The feature configuration is stored in:
+
+```text
+ml/configs/taxi_demand.yaml
+```
+
+### Feature Engineering
+
+The reusable Spark ML feature pipeline automatically performs:
+
+- missing-value imputation using the median,
+- categorical indexing using `StringIndexer`,
+- categorical encoding using `OneHotEncoder`,
+- feature vector creation using `VectorAssembler`.
+
+The dataset is split chronologically into training, validation, and test sets.
+
+For the current dataset:
+
+```text
+Training:   January - April
+Validation: May
+Test:       June
+```
+
+The current model uses a `RandomForestRegressor` with:
+
+```text
+numTrees = 50
+maxDepth = 8
+seed = 42
+```
+
+### Train and Evaluate the Model
+
+Run the ML training pipeline with:
+
+```bash
+python3 -m src.ml.main
+```
+
+The pipeline automatically:
+
+- builds the ML dataset from the Gold table,
+- creates temporal features,
+- splits the dataset,
+- applies feature engineering,
+- trains the Random Forest model,
+- evaluates validation and test datasets,
+- reports RMSE, MAE, and R²,
+- reports execution times,
+- saves the complete trained Spark ML pipeline.
+
+The trained model is stored in:
+
+```text
+storage/models/taxi_demand/
+```
+
+The complete Spark `PipelineModel` is saved, including both feature preprocessing and the trained regression model.
+
+### Model Evaluation
+
+The current ML dataset contains:
+
+```text
+363,160 rows
+```
+
+with the following split:
+
+```text
+Training:   279,108 rows
+Validation:  40,772 rows
+Test:        43,280 rows
+```
+
+The final model produced approximately:
+
+```text
+Validation RMSE: 10.63
+Validation MAE:   8.20
+Validation R²:   -0.3215
+
+Test RMSE:       10.23
+Test MAE:         7.77
+Test R²:         -0.1331
+```
+
+The objective of the project is not to maximize prediction accuracy, but to demonstrate a reusable and reproducible Spark ML workflow.
+
+Increasing the Random Forest complexity significantly improved the model compared with the initial configuration. Further improvements could include historical-demand features such as previous-hour demand or average demand for the same zone and hour.
+
+### Run Predictions
+
+A saved model can be loaded and used without retraining.
+
+Run example predictions with:
+
+```bash
+python3 -m src.ml.predict
+```
+
+The prediction script loads:
+
+```text
+storage/models/taxi_demand/
+```
+
+and applies the complete saved pipeline to new feature values.
+
+Example inputs include:
+
+```text
+pickup zone
+pickup borough
+hour of day
+day of week
+month
+temperature
+humidity
+precipitation
+air quality
+```
+
+The output is the predicted hourly taxi demand.
+
+### Retraining
+
+Retraining uses the same command:
+
+```bash
+python3 -m src.ml.main
+```
+
+When new data has been processed by the platform, the ML dataset is rebuilt from the updated Gold table and the same feature engineering and training pipeline is executed again.
+
+No separate preprocessing implementation is required.
+
+## Raw Data vs Integrated Platform Comparison
+
+The project also compares two workflows for creating the same ML dataset.
+
+### Approach A: Raw Data
+
+Approach A starts directly from the original Taxi Trips, Weather, Air Quality, and Taxi Zones files.
+
+It manually performs:
+
+- loading,
+- schema conversion,
+- timestamp construction,
+- cleaning,
+- validation,
+- dataset integration,
+- aggregation,
+- feature engineering,
+- model training.
+
+Run the experiment with:
+
+```bash
+python3 -m src.ml.approach_a
+```
+
+### Approach B: Integrated Platform
+
+Approach B uses the integrated Gold dataset produced by the platform.
+
+Most schema handling, validation, cleaning, and integration have already been completed before the ML workflow starts.
+
+The comparison produced:
+
+| Metric | Approach A: Raw | Approach B: Platform |
+| --- | ---: | ---: |
+| ML dataset rows | 363,160 | 363,160 |
+| Data preparation | 34.99 s | 16.06 s |
+| Model training | 120.98 s | 110.15 s |
+| Total execution | 165.08 s | 138.35 s |
+| Test RMSE | 9.81 | 10.23 |
+| Test MAE | 7.31 | 7.77 |
+| Test R² | -0.0422 | -0.1331 |
+
+Using the integrated platform reduced data preparation time by approximately 54%.
+
+More importantly, Approach B avoids repeating schema conversion, validation, timestamp processing, and integration logic inside the ML workflow.
+
 ## Output Structure
 
 The platform storage is organized as:
@@ -227,6 +446,9 @@ storage/
 │       ├── quality_impact_summary/
 │       └── borough_mobility_summary/
 │
+├── models/
+│   └── taxi_demand/
+│
 ├── rejected/
 ├── metadata/
 └── processed_files/
@@ -237,6 +459,7 @@ The layers have the following roles:
 - **Bronze:** raw ingested data with schema evolution support.
 - **Silver:** validated, cleaned, deduplicated, and standardized datasets.
 - **Gold:** integrated analytical data and reusable data products.
+- **Models:** trained Spark ML pipelines.
 - **Rejected:** invalid records isolated during validation.
 - **Metadata:** operational monitoring information for pipeline executions.
 - **Processed Files:** tracks already processed input files for incremental ingestion.
