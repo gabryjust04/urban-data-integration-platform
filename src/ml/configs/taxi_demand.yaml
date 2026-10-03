@@ -1,0 +1,16 @@
+target: taxi_demand
+
+numerical_features:
+  - hour_of_day
+  - day_of_week
+  - month
+  - temp
+  - rhum
+  - prcp
+  - air_quality_measurement
+
+categorical_features:
+  - pickup_zone
+  - pickup_borough
+
+model: random_forest

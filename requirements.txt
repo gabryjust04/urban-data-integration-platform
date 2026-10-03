@@ -1,3 +1,4 @@
 pyspark
 delta-spark
 pyyaml
+numpy
